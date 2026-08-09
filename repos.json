@@ -1,0 +1,14 @@
+{
+  "repos": [
+    ".github",
+    "roots",
+    "crypto",
+    "core",
+    "server-leaf",
+    "server-grove",
+    "server-forest",
+    "spec",
+    "app",
+    "site"
+  ]
+}
