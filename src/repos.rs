@@ -87,3 +87,109 @@ pub fn all_repos() -> Result<Vec<Repo>> {
     }
     Ok(repos)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn cli_root_points_at_this_crate() {
+        assert!(cli_root().join("Cargo.toml").is_file());
+    }
+
+    #[test]
+    fn workspace_root_is_cli_roots_parent() {
+        assert_eq!(workspace_root(), cli_root().parent().unwrap());
+    }
+
+    #[test]
+    fn sibling_repo_names_reads_real_repos_json() {
+        // Exercises the real repos.json shipped in this crate — catches a
+        // malformed file at test time rather than only when a `brigid repos`
+        // subcommand happens to be run.
+        let names = sibling_repo_names().unwrap();
+        assert!(!names.is_empty());
+        assert!(
+            !names.contains(&"cli".to_string()),
+            "cli must not list itself in repos.json — all_repos() adds it implicitly"
+        );
+    }
+
+    #[test]
+    fn all_repos_puts_cli_first_and_includes_every_sibling() {
+        let repos = all_repos().unwrap();
+        assert_eq!(repos[0].name, "cli");
+        assert_eq!(repos[0].path, cli_root());
+        assert_eq!(repos.len(), sibling_repo_names().unwrap().len() + 1);
+    }
+
+    #[test]
+    fn kind_detects_cargo_project() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("Cargo.toml"), "").unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(matches!(repo.kind(), ProjectKind::Cargo));
+    }
+
+    #[test]
+    fn kind_detects_pnpm_project() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("package.json"), "{}").unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(matches!(repo.kind(), ProjectKind::Pnpm));
+    }
+
+    #[test]
+    fn kind_is_none_without_a_manifest() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(matches!(repo.kind(), ProjectKind::None));
+    }
+
+    #[test]
+    fn is_git_repo_checks_for_dot_git() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(!repo.is_git_repo());
+        std::fs::create_dir(dir.path().join(".git")).unwrap();
+        assert!(repo.is_git_repo());
+    }
+
+    #[test]
+    fn has_pnpm_script_finds_declared_scripts_only() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(
+            dir.path().join("package.json"),
+            r#"{"scripts": {"build": "vite build"}}"#,
+        )
+        .unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(repo.has_pnpm_script("build"));
+        assert!(!repo.has_pnpm_script("test"));
+    }
+
+    #[test]
+    fn has_pnpm_script_false_without_package_json() {
+        let dir = tempfile::tempdir().unwrap();
+        let repo = Repo {
+            name: "x".to_string(),
+            path: dir.path().to_path_buf(),
+        };
+        assert!(!repo.has_pnpm_script("build"));
+    }
+}
