@@ -17,24 +17,14 @@ pub fn path() -> PathBuf {
 /// Reads `BRIGID_MASTER_KEY` out of `.env`, if present.
 pub fn read_master_key(env_path: &Path) -> Option<String> {
     let content = std::fs::read_to_string(env_path).ok()?;
-    for line in content.lines() {
-        if let Some(value) = line.strip_prefix(&format!("{MASTER_KEY_VAR}=")) {
-            return Some(value.trim().to_string());
-        }
-    }
-    None
+    helpers4::env::get(&content, MASTER_KEY_VAR)
 }
 
 /// Writes/replaces `BRIGID_MASTER_KEY` in `.env`, preserving any other lines.
 pub fn write_master_key(env_path: &Path, key: &str) -> anyhow::Result<()> {
-    let mut lines: Vec<String> = std::fs::read_to_string(env_path)
-        .unwrap_or_default()
-        .lines()
-        .filter(|line| !line.starts_with(&format!("{MASTER_KEY_VAR}=")))
-        .map(str::to_string)
-        .collect();
-    lines.push(format!("{MASTER_KEY_VAR}={key}"));
-    std::fs::write(env_path, lines.join("\n") + "\n")?;
+    let content = std::fs::read_to_string(env_path).unwrap_or_default();
+    let updated = helpers4::env::set(&content, MASTER_KEY_VAR, key)?;
+    std::fs::write(env_path, updated)?;
     Ok(())
 }
 
@@ -49,7 +39,7 @@ pub fn generate_master_key() -> anyhow::Result<String> {
         .and_then(|mut f| f.read_exact(&mut bytes))
         .map_err(|err| anyhow::anyhow!("reading /dev/urandom: {err}"))?;
 
-    Ok(bytes.iter().map(|b| format!("{b:02x}")).collect())
+    Ok(helpers4::hex::encode(&bytes))
 }
 
 #[cfg(test)]
