@@ -49,7 +49,7 @@ pub fn run() -> Result<()> {
 
     let config = MprocsConfig { procs };
     let config_path = cli_root().join("mprocs.yaml");
-    std::fs::write(&config_path, serde_yaml::to_string(&config)?)
+    std::fs::write(&config_path, serde_norway::to_string(&config)?)
         .with_context(|| format!("writing {}", config_path.display()))?;
 
     println!("\n→ launching mprocs ({})...\n", config_path.display());
