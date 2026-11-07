@@ -6,6 +6,8 @@
     "dev",
     "repos",
     "ci",
-    "deps"
+    "deps",
+    "ai",
+    "docs"
   ]
 }
