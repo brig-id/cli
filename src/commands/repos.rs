@@ -1,8 +1,6 @@
 //! `brigid repos <action>` — cross-repo git/build commands.
 //!
-//! Replaces the old `scripts/git-each.mjs` + `scripts/run-each.mjs` Node
-//! scripts, and (unlike `run-each.mjs`, which only knew about `pnpm`) dispatches
-//! per repo on whether it's a cargo crate or a pnpm project.
+//! Dispatches per repo on whether it's a cargo crate or a pnpm project.
 
 use clap::Subcommand;
 

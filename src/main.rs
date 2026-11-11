@@ -19,7 +19,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
-    /// Cross-repo git/build commands (replaces the old scripts/*.mjs).
+    /// Cross-repo git/build commands.
     Repos {
         #[command(subcommand)]
         action: ReposAction,
