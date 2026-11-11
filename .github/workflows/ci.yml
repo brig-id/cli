@@ -11,11 +11,11 @@ permissions:
 
 jobs:
   ci:
-    uses: brig-id/.github/.github/workflows/ci-rust.yml@29c29dc061b5405f6fb33281e675613f0302899d
+    uses: brig-id/.github/.github/workflows/ci-rust.yml@5e019131d735e4ed0bd3598b5a61137bdae7eff3
     with:
       working-directory: .
 
   security:
-    uses: brig-id/.github/.github/workflows/security-audit.yml@29c29dc061b5405f6fb33281e675613f0302899d
+    uses: brig-id/.github/.github/workflows/security-audit.yml@5e019131d735e4ed0bd3598b5a61137bdae7eff3
     with:
       working-directory: .
