@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main, "dev/*"]
 
+permissions:
+  contents: read
+
 jobs:
   ci:
     uses: brig-id/.github/.github/workflows/ci-rust.yml@29c29dc061b5405f6fb33281e675613f0302899d
