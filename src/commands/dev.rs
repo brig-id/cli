@@ -62,15 +62,9 @@ pub fn run() -> Result<()> {
     std::process::exit(status.code().unwrap_or(1));
 }
 
-/// The servers, one per edition, that have an actual `Cargo.toml` today.
-/// `server-leaf` is the name `server-seedling` had: a workspace cloned
-/// before the rename still holds it under that folder.
-const SERVERS: [&str; 4] = [
-    "server-seedling",
-    "server-leaf",
-    "server-grove",
-    "server-forest",
-];
+/// The servers, one per edition. Only those with an actual `Cargo.toml`
+/// are offered.
+const SERVERS: [&str; 3] = ["server-seedling", "server-grove", "server-forest"];
 
 fn available_servers() -> Vec<String> {
     SERVERS
@@ -142,9 +136,4 @@ mod tests {
         assert!(proc.env.keys().all(|key| key.starts_with("BRIGID_")));
     }
 
-    #[test]
-    fn the_renamed_server_comes_first() {
-        assert_eq!(SERVERS[0], "server-seedling");
-        assert!(SERVERS.contains(&"server-leaf"));
-    }
 }
