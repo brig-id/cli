@@ -1,7 +1,7 @@
 //! Minimal read/write for the gitignored `cli/.env` file that persists
 //! `BRIGID_MASTER_KEY` across shells — dev-only, never used in production
 //! (production reads `BRIGID_MASTER_KEY`/`BRIGID_MASTER_KEY_FILE` directly from
-//! the deployment environment, per `server-leaf/AGENTS.md`'s hard security
+//! the deployment environment, per `server-seedling/AGENTS.md`'s hard security
 //! constraints).
 
 use std::path::{Path, PathBuf};

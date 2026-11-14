@@ -29,7 +29,7 @@ pub fn run() -> Result<()> {
     let servers = available_servers();
     if servers.is_empty() {
         bail!(
-            "no runnable server found (server-leaf/server-grove/server-forest all missing a Cargo.toml)"
+            "no runnable server found (server-seedling/server-grove/server-forest all missing a Cargo.toml)"
         );
     }
     let server = Select::new("Which server?", servers).prompt()?;
@@ -62,10 +62,18 @@ pub fn run() -> Result<()> {
     std::process::exit(status.code().unwrap_or(1));
 }
 
-/// Server names that have an actual `Cargo.toml` today (only `server-leaf`,
-/// until `server-grove`/`server-forest` grow past their empty-placeholder state).
+/// The servers, one per edition, that have an actual `Cargo.toml` today.
+/// `server-leaf` is the name `server-seedling` had: a workspace cloned
+/// before the rename still holds it under that folder.
+const SERVERS: [&str; 4] = [
+    "server-seedling",
+    "server-leaf",
+    "server-grove",
+    "server-forest",
+];
+
 fn available_servers() -> Vec<String> {
-    ["server-leaf", "server-grove", "server-forest"]
+    SERVERS
         .into_iter()
         .filter(|name| workspace_root().join(name).join("Cargo.toml").is_file())
         .map(str::to_string)
@@ -76,31 +84,27 @@ fn server_proc(name: &str, master_key: &str) -> MprocsProc {
     let mut env = BTreeMap::new();
     env.insert("BRIGID_MASTER_KEY".to_string(), master_key.to_string());
 
-    // `LEAF_*` config keys are specific to `server-leaf`'s figment setup (see
-    // `server-leaf/AGENTS.md`'s "Local dev without Docker"). `server-grove`/
-    // `server-forest` don't exist yet — when they do, they'll need their own
-    // config-key scheme here rather than inheriting leaf's blindly.
-    if name == "server-leaf" {
-        env.insert(
-            "LEAF_DATABASE__PATH".to_string(),
-            "./brigid-dev.db".to_string(),
-        );
-        env.insert(
-            "LEAF_SERVER__DOMAIN".to_string(),
-            "brigid.localhost".to_string(),
-        );
-        env.insert(
-            "LEAF_SERVER__PUBLIC_URL".to_string(),
-            "https://brigid.localhost:5173".to_string(),
-        );
+    // The three editions read their settings under one prefix, `BRIGID_`
+    // (see `server-seedling/AGENTS.md`, "Local dev without Docker").
+    for (key, value) in dev_settings() {
+        env.insert(key.to_string(), value.to_string());
     }
 
-    let bin = name.strip_prefix("server-").unwrap_or(name);
     MprocsProc {
-        shell: format!("cargo run -p {bin}"),
+        // Each server repository holds one binary: no package to name.
+        shell: "cargo run".to_string(),
         cwd: workspace_root().join(name).display().to_string(),
         env,
     }
+}
+
+/// What a server needs to serve the dev interface on `brigid.localhost`.
+fn dev_settings() -> [(&'static str, &'static str); 3] {
+    [
+        ("BRIGID_DATABASE__PATH", "./brigid-dev.db"),
+        ("BRIGID_SERVER__DOMAIN", "brigid.localhost"),
+        ("BRIGID_SERVER__PUBLIC_URL", "https://brigid.localhost:5173"),
+    ]
 }
 
 fn app_proc() -> MprocsProc {
@@ -122,4 +126,25 @@ struct MprocsProc {
     cwd: String,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     env: BTreeMap<String, String>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_server_gets_the_master_key_and_its_settings_under_one_prefix() {
+        let proc = server_proc("server-seedling", "00ff");
+        assert_eq!(proc.shell, "cargo run");
+        assert!(proc.cwd.ends_with("server-seedling"));
+        assert_eq!(proc.env["BRIGID_MASTER_KEY"], "00ff");
+        assert_eq!(proc.env["BRIGID_SERVER__DOMAIN"], "brigid.localhost");
+        assert!(proc.env.keys().all(|key| key.starts_with("BRIGID_")));
+    }
+
+    #[test]
+    fn the_renamed_server_comes_first() {
+        assert_eq!(SERVERS[0], "server-seedling");
+        assert!(SERVERS.contains(&"server-leaf"));
+    }
 }

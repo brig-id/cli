@@ -97,7 +97,7 @@ fn ensure_master_key() -> Result<()> {
     println!(
         "✓ BRIGID_MASTER_KEY written to cli/.env\n\
          ⚠️  dev only — never reuse this key, or a `.env`-style file, in production. \
-         See server-leaf/AGENTS.md's hard security constraints."
+         See server-seedling/AGENTS.md's hard security constraints."
     );
     Ok(())
 }

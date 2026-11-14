@@ -62,7 +62,7 @@ Format: `type(scope): <emoji> description`
 
 Scopes are declared in `.vscode/settings.json` (`conventionalCommits.scopes`) — this
 repo has no `scopes.json`, matching the other single-concern product repos
-(`crypto`, `core`, `server-leaf`, `spec`) rather than `roots`, which is the only repo
+(`crypto`, `core`, `server-seedling`, `spec`) rather than `roots`, which is the only repo
 covering multiple unrelated concerns.
 
 | Scope | Maps to |
