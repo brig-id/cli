@@ -4,11 +4,12 @@
     "roots",
     "crypto",
     "core",
-    "server-leaf",
+    "server-seedling",
     "server-grove",
     "server-forest",
     "spec",
     "app",
-    "site"
+    "site",
+    "demo"
   ]
 }
