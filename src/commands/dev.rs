@@ -135,5 +135,4 @@ mod tests {
         assert_eq!(proc.env["BRIGID_SERVER__DOMAIN"], "brigid.localhost");
         assert!(proc.env.keys().all(|key| key.starts_with("BRIGID_")));
     }
-
 }
