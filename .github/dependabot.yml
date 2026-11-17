@@ -1,27 +1,22 @@
 version: 2
+
+# One pull request a week for everything this repository depends on, all
+# ecosystems together: Dependabot opens no other.
+multi-ecosystem-groups:
+  dependencies:
+    schedule:
+      interval: weekly
+      day: monday
+    labels:
+      - dependencies
+
 updates:
   - package-ecosystem: cargo
     directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    groups:
-      cargo-dependencies:
-        patterns:
-          - "*"
+    multi-ecosystem-group: dependencies
+    patterns: ["*"]
 
   - package-ecosystem: github-actions
     directory: /
-    schedule:
-      interval: weekly
-      day: monday
-    open-pull-requests-limit: 5
-    labels:
-      - dependencies
-    groups:
-      github-actions:
-        patterns:
-          - "*"
+    multi-ecosystem-group: dependencies
+    patterns: ["*"]
