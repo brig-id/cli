@@ -5,6 +5,7 @@
     "setup",
     "dev",
     "repos",
+    "release",
     "ci",
     "deps",
     "ai",
