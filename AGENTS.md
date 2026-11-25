@@ -18,6 +18,10 @@ issues, pull requests. No exceptions.
 - `repos` — cross-repo convenience commands (`status`, `fetch`, `pull`, `branch`,
   `install`, `build`, `test`, `lint`) run against the sibling repos cloned by
   [`brig-id/roots`](https://github.com/brig-id/roots)'s devcontainer
+- `release` — the release train, read from GitHub through `gh`: the pull requests to
+  merge in order (crypto, core, app, servers; Renovate's `brig-id` updates and
+  release-please's release pull requests), with their checks, and the pins older than
+  the latest release, which Renovate has yet to propose. It never merges.
 
 This repo does not host product runtime code, orchestration config, or the
 devcontainer itself — those live in `roots`. `cli` is cloned as a sibling alongside
@@ -37,6 +41,7 @@ brigid check
 brigid setup
 brigid dev
 brigid repos <status|fetch|pull|branch|install|build|test|lint>
+brigid release [--watch]
 ```
 
 ## Roadmap & planning
@@ -71,6 +76,7 @@ covering multiple unrelated concerns.
 | `setup` | `src/commands/setup.rs` |
 | `dev` | `src/commands/dev.rs` |
 | `repos` | `src/commands/repos.rs`, `src/repos.rs` |
+| `release` | `src/commands/release.rs` |
 | `ci` | `.github/workflows/` |
 | `deps` | Dependency bumps |
 

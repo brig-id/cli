@@ -1,6 +1,6 @@
 //! `brigid` — brig·id dev orchestrator: prerequisite checks, local HTTPS /
-//! master-key setup, cross-repo git/build commands, and a split-pane process
-//! launcher (via `mprocs`) for local development.
+//! master-key setup, cross-repo git/build commands, a split-pane process
+//! launcher (via `mprocs`) for local development, and the release train.
 
 mod commands;
 mod env_file;
@@ -30,6 +30,13 @@ enum Command {
     Setup,
     /// Interactively launch dev processes side by side.
     Dev,
+    /// Show the release train: the pull requests to merge, in order, with
+    /// their checks, and the updates Renovate has yet to propose.
+    Release {
+        /// Refresh every minute until stopped.
+        #[arg(long)]
+        watch: bool,
+    },
 }
 
 fn main() -> anyhow::Result<()> {
@@ -46,5 +53,6 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Setup => commands::setup::run(),
         Command::Dev => commands::dev::run(),
+        Command::Release { watch } => commands::release::run(watch),
     }
 }
