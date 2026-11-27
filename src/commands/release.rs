@@ -80,10 +80,12 @@ pub enum ReleaseAction {
         /// seedling or grove.
         product: String,
     },
-    /// Start the server's Release workflow (it builds, publishes, tags last).
+    /// Start the Release workflow of one server or more (it builds,
+    /// publishes, tags last), after one confirmation for all of them.
     Cut {
-        /// seedling or grove.
-        product: String,
+        /// seedling, grove, or both.
+        #[arg(required = true, num_args = 1..)]
+        products: Vec<String>,
         /// The size of the step; `auto` reads it from the commits.
         #[arg(long, value_enum, default_value_t = Bump::Auto)]
         bump: Bump,
@@ -132,12 +134,21 @@ pub fn run(action: Option<ReleaseAction>) -> Result<()> {
             Ok(())
         }
         Some(ReleaseAction::Cut {
-            product,
+            products,
             bump,
             force,
             dry_run,
             yes,
-        }) => cut(product_named(&product)?, bump, force, dry_run, yes),
+        }) => {
+            let mut chosen: Vec<&'static Product> = Vec::new();
+            for name in &products {
+                let product = product_named(name)?;
+                if !chosen.iter().any(|p| p.repo == product.repo) {
+                    chosen.push(product);
+                }
+            }
+            cut(&chosen, bump, force, dry_run, yes)
+        }
         Some(ReleaseAction::Plan {
             product,
             bump,
@@ -498,16 +509,22 @@ fn short(reference: &str) -> &str {
 // -- `brigid release` ---------------------------------------------------------
 
 fn status() -> Result<()> {
-    let mut to_release = Vec::new();
+    let mut ready: Vec<(&'static Product, Version)> = Vec::new();
+    let mut waiting = Vec::new();
     for product in &PRODUCTS {
         let plan = plan(product, "main", Bump::Auto, false)?;
         let previous = plan
             .previous
             .map_or_else(|| "no release yet".to_string(), |v| format!("v{v}"));
+        let main = main_checks(product.repo, &plan.moved[0].to)?;
         match (plan.asked, plan.next) {
             (Some(_), Some(next)) => {
-                to_release.push(product.name);
                 println!("{}  {previous} → v{next}", product.name);
+                if main == Checks::Green {
+                    ready.push((product, next));
+                } else {
+                    waiting.push(product.name);
+                }
             }
             _ => println!("{}  {previous}: nothing to release", product.name),
         }
@@ -546,38 +563,140 @@ fn status() -> Result<()> {
                 );
             }
         }
+        if plan.next.is_some() && plan.asked.is_some() {
+            println!("  main of {}: {}", product.repo, main.describe());
+        }
         println!();
     }
-    if to_release.is_empty() {
+
+    if ready.is_empty() && waiting.is_empty() {
         println!("No release to make.");
-    } else {
-        for name in to_release {
-            println!(
-                "To release: brigid release cut {name}   (its notes: brigid release notes {name})"
-            );
-        }
+        return Ok(());
+    }
+    if !waiting.is_empty() {
+        println!(
+            "Not yet: {} (main must be green; the Release workflow refuses it otherwise).",
+            waiting.join(", ")
+        );
+    }
+    if ready.is_empty() {
+        return Ok(());
+    }
+    let names: Vec<&str> = ready.iter().map(|(p, _)| p.name).collect();
+    println!("To release: brigid release cut {}", names.join(" "));
+    if !std::io::IsTerminal::is_terminal(&std::io::stdin()) {
+        return Ok(());
+    }
+    let question = format!("Release {} now?", listed(&ready));
+    if !inquire::Confirm::new(&question)
+        .with_default(false)
+        .prompt()?
+    {
+        println!("Nothing started.");
+        return Ok(());
+    }
+    for (product, _) in &ready {
+        dispatch(product, Bump::Auto, false, false)?;
     }
     Ok(())
 }
 
+/// `seedling v0.12.3 and grove v0.5.3`
+fn listed(releases: &[(&'static Product, Version)]) -> String {
+    let each: Vec<String> = releases
+        .iter()
+        .map(|(p, v)| format!("{} v{v}", p.name))
+        .collect();
+    match each.split_last() {
+        Some((last, rest)) if !rest.is_empty() => format!("{} and {last}", rest.join(", ")),
+        _ => each.join(""),
+    }
+}
+
+/// The runs of a commit of main, as the Release workflow judges them.
+#[derive(Debug, PartialEq)]
+enum Checks {
+    Green,
+    Running(usize),
+    Red(Vec<String>),
+}
+
+impl Checks {
+    /// From `status conclusion name` lines, one per run.
+    fn from_runs(runs: &str) -> Self {
+        let mut running = 0;
+        let mut red = Vec::new();
+        for line in runs.lines().filter(|l| !l.trim().is_empty()) {
+            let mut words = line.splitn(3, ' ');
+            let status = words.next().unwrap_or("");
+            let conclusion = words.next().unwrap_or("");
+            let name = words.next().unwrap_or("?");
+            if status != "completed" {
+                running += 1;
+            } else if !matches!(conclusion, "success" | "skipped" | "neutral") {
+                red.push(name.to_string());
+            }
+        }
+        if !red.is_empty() {
+            Checks::Red(red)
+        } else if running > 0 {
+            Checks::Running(running)
+        } else {
+            Checks::Green
+        }
+    }
+
+    fn describe(&self) -> String {
+        match self {
+            Checks::Green => "✅ green".into(),
+            Checks::Running(n) => format!("⏳ {n} run(s) not finished"),
+            Checks::Red(names) => format!("❌ failed: {}", names.join(", ")),
+        }
+    }
+}
+
+fn main_checks(repo: &str, commit: &str) -> Result<Checks> {
+    let runs = gh(&[
+        "api",
+        &format!("repos/{ORG}/{repo}/actions/runs?head_sha={commit}&event=push&per_page=100"),
+        "--jq",
+        r#".workflow_runs[] | "\(.status) \(.conclusion // "-") \(.name)""#,
+    ])?;
+    Ok(Checks::from_runs(&runs))
+}
+
 // -- `brigid release cut` -----------------------------------------------------
 
-fn cut(product: &'static Product, bump: Bump, force: bool, dry_run: bool, yes: bool) -> Result<()> {
-    let plan = plan(product, "main", bump, force)?;
-    let Some(next) = plan.next else {
-        bail!(
-            "nothing changed for the people who run {} since v{}: no release \
-             (`--force` makes one anyway)",
-            product.name,
-            plan.previous.map(|v| v.to_string()).unwrap_or_default()
-        );
-    };
-    println!("{} v{next}\n\n{}", product.name, plan.notes);
+fn cut(
+    products: &[&'static Product],
+    bump: Bump,
+    force: bool,
+    dry_run: bool,
+    yes: bool,
+) -> Result<()> {
+    let mut releases = Vec::new();
+    for product in products {
+        let plan = plan(product, "main", bump, force)?;
+        let Some(next) = plan.next else {
+            println!(
+                "{}: nothing changed for the people who run it since v{}, no release \
+                 (`--force` makes one anyway)\n",
+                product.name,
+                plan.previous.map(|v| v.to_string()).unwrap_or_default()
+            );
+            continue;
+        };
+        println!("{} v{next}\n\n{}", product.name, plan.notes);
+        releases.push((*product, next));
+    }
+    if releases.is_empty() {
+        bail!("no release to make");
+    }
     if !yes {
         let question = if dry_run {
-            format!("Build {} v{next} without publishing it?", product.name)
+            format!("Build {} without publishing?", listed(&releases))
         } else {
-            format!("Release {} v{next}?", product.name)
+            format!("Release {}?", listed(&releases))
         };
         if !inquire::Confirm::new(&question)
             .with_default(false)
@@ -587,30 +706,60 @@ fn cut(product: &'static Product, bump: Bump, force: bool, dry_run: bool, yes: b
             return Ok(());
         }
     }
+    for (product, _) in &releases {
+        dispatch(product, bump, force, dry_run)?;
+    }
+    Ok(())
+}
+
+/// Starts the server's Release workflow on `main`.
+fn dispatch(product: &Product, bump: Bump, force: bool, dry_run: bool) -> Result<()> {
     let full = format!("{ORG}/{}", product.repo);
+    let page = format!("https://github.com/{full}/actions/workflows/release.yml");
     let bump = match bump {
         Bump::Auto => "auto",
         Bump::Patch => "patch",
         Bump::Minor => "minor",
         Bump::Major => "major",
     };
-    gh(&[
-        "workflow",
-        "run",
-        "release.yml",
-        "-R",
-        &full,
-        "--ref",
-        "main",
-        "-f",
-        &format!("bump={bump}"),
-        "-f",
-        &format!("force={force}"),
-        "-f",
-        &format!("dry-run={dry_run}"),
-    ])?;
-    println!("Started: https://github.com/{full}/actions/workflows/release.yml");
-    Ok(())
+    let args = [
+        "workflow".to_string(),
+        "run".into(),
+        "release.yml".into(),
+        "-R".into(),
+        full.clone(),
+        "--ref".into(),
+        "main".into(),
+        "-f".into(),
+        format!("bump={bump}"),
+        "-f".into(),
+        format!("force={force}"),
+        "-f".into(),
+        format!("dry-run={dry_run}"),
+    ];
+    let args: Vec<&str> = args.iter().map(String::as_str).collect();
+    match gh(&args) {
+        Ok(_) => {
+            println!("{}: started, {page}", product.name);
+            Ok(())
+        }
+        Err(error) if forbidden(&error.to_string()) => bail!(
+            "{}: GitHub refused to start the workflow (403). The account `gh` uses here \
+             may not start workflows of {full}: its token needs the permission \
+             \"Actions: Read and write\" on that repository (the devcontainer's GH_TOKEN \
+             has not got it).\n\
+             Start it from the page instead: {page} → Run workflow, branch main, bump {bump}{}.\n\
+             Or from a machine where `gh` is logged in as you: gh {}",
+            product.name,
+            if force { ", force" } else { "" },
+            args.join(" ")
+        ),
+        Err(error) => Err(error),
+    }
+}
+
+fn forbidden(error: &str) -> bool {
+    error.contains("HTTP 403") || error.contains("Resource not accessible")
 }
 
 // -- GitHub, through `gh` -----------------------------------------------------
@@ -769,6 +918,42 @@ mod tests {
     fn a_subject_without_emoji_is_kept_whole() {
         assert_eq!(change("fix(api): refuse it").subject, "refuse it");
         assert_eq!(change("no convention here").subject, "no convention here");
+    }
+
+    #[test]
+    fn main_is_green_only_when_every_run_is_over_and_passed() {
+        assert_eq!(Checks::from_runs(""), Checks::Green);
+        let green = "completed success CI\ncompleted skipped Coverage\n";
+        assert_eq!(Checks::from_runs(green), Checks::Green);
+        let running = "completed success CI\nin_progress - Restore\n";
+        assert_eq!(Checks::from_runs(running), Checks::Running(1));
+        let red = "completed failure Integration tests\nin_progress - Restore\n";
+        assert_eq!(
+            Checks::from_runs(red),
+            Checks::Red(vec!["Integration tests".into()])
+        );
+    }
+
+    #[test]
+    fn releases_are_listed_for_a_person() {
+        let one = [(&PRODUCTS[0], Version(0, 12, 3))];
+        assert_eq!(listed(&one), "seedling v0.12.3");
+        let two = [
+            (&PRODUCTS[0], Version(0, 12, 3)),
+            (&PRODUCTS[1], Version(0, 5, 3)),
+        ];
+        assert_eq!(listed(&two), "seedling v0.12.3 and grove v0.5.3");
+    }
+
+    #[test]
+    fn a_refusal_of_the_token_is_recognised() {
+        assert!(forbidden(
+            "gh workflow run …: could not create workflow dispatch event: HTTP 403: \
+             Resource not accessible by personal access token (https://api.github.com/…)"
+        ));
+        assert!(!forbidden(
+            "gh workflow run …: HTTP 422: No ref found for: main"
+        ));
     }
 
     #[test]
