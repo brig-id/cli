@@ -1,6 +1,7 @@
 //! `brigid` — brig·id dev orchestrator: prerequisite checks, local HTTPS /
 //! master-key setup, cross-repo git/build commands, a split-pane process
-//! launcher (via `mprocs`) for local development, and the release train.
+//! launcher (via `mprocs`) for local development, and the releases of the
+//! servers.
 
 mod commands;
 mod env_file;
@@ -8,6 +9,7 @@ mod repos;
 
 use clap::{Parser, Subcommand};
 
+use commands::release::ReleaseAction;
 use commands::repos::ReposAction;
 
 #[derive(Parser)]
@@ -30,12 +32,14 @@ enum Command {
     Setup,
     /// Interactively launch dev processes side by side.
     Dev,
-    /// Show the release train: the pull requests to merge, in order, with
-    /// their checks, and the updates Renovate has yet to propose.
+    /// What a release of each server would hold; `cut` starts one.
+    ///
+    /// Without a subcommand: for seedling and grove, what was merged since
+    /// their last release (in the server, crypto, the core and the
+    /// interface), and whether a person running the server would notice.
     Release {
-        /// Refresh every minute until stopped.
-        #[arg(long)]
-        watch: bool,
+        #[command(subcommand)]
+        action: Option<ReleaseAction>,
     },
 }
 
@@ -53,6 +57,6 @@ fn main() -> anyhow::Result<()> {
         }
         Command::Setup => commands::setup::run(),
         Command::Dev => commands::dev::run(),
-        Command::Release { watch } => commands::release::run(watch),
+        Command::Release { action } => commands::release::run(action),
     }
 }
