@@ -18,7 +18,7 @@ issues, pull requests. No exceptions.
 - `repos` — cross-repo convenience commands (`status`, `fetch`, `pull`, `branch`,
   `install`, `build`, `test`, `lint`) run against the sibling repos cloned by
   [`brig-id/roots`](https://github.com/brig-id/roots)'s devcontainer
-- `release` — the releases of the servers (seedling, grove), read from GitHub through
+- `release` — the releases of the servers (seedling, grove, forest), read from GitHub through
   `gh`. Without a subcommand: for each server, what was merged since its last release
   in its own repository and in crypto, the core and the interface (which it follows at
   a commit of their `main`), whether a person running it would notice, and what is

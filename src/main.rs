@@ -34,7 +34,7 @@ enum Command {
     Dev,
     /// What a release of each server would hold; `cut` starts one.
     ///
-    /// Without a subcommand: for seedling and grove, what was merged since
+    /// Without a subcommand: for seedling, grove and forest, what was merged since
     /// their last release (in the server, crypto, the core and the
     /// interface), and whether a person running the server would notice.
     Release {
