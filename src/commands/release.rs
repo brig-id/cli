@@ -532,6 +532,15 @@ fn status() -> Result<()> {
                     waiting.push(product.name);
                 }
             }
+            // A server that was never released has nothing to compare with:
+            // its first release is not offered with the others, it is asked
+            // for by name.
+            (None, Some(next)) if plan.previous.is_none() => {
+                println!(
+                    "{}  {previous} → v{next}, its first: brigid release cut {}",
+                    product.name, product.name
+                );
+            }
             _ => println!("{}  {previous}: nothing to release", product.name),
         }
         let mut merged = 0;
@@ -569,7 +578,7 @@ fn status() -> Result<()> {
                 );
             }
         }
-        if plan.next.is_some() && plan.asked.is_some() {
+        if plan.next.is_some() && (plan.asked.is_some() || plan.previous.is_none()) {
             println!("  main of {}: {}", product.repo, main.describe());
         }
         println!();
