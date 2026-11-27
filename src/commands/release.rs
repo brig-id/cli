@@ -1,7 +1,7 @@
 //! `brigid release` — what a release of a server would hold, and the gesture
 //! that makes one.
 //!
-//! Only the servers are released (seedling, grove). crypto, the core and the
+//! Only the servers are released (seedling, grove, forest). crypto, the core and the
 //! interface are what a server is made of: a server follows each at a commit
 //! of its `main` (`Cargo.lock` for crypto and the core, `APP_REF` in its
 //! `ci.yml` for the interface), and a release of the server says what moved
@@ -29,7 +29,7 @@ struct Product {
     repo: &'static str,
 }
 
-const PRODUCTS: [Product; 2] = [
+const PRODUCTS: [Product; 3] = [
     Product {
         name: "seedling",
         repo: "server-seedling",
@@ -37,6 +37,10 @@ const PRODUCTS: [Product; 2] = [
     Product {
         name: "grove",
         repo: "server-grove",
+    },
+    Product {
+        name: "forest",
+        repo: "server-forest",
     },
 ];
 
@@ -77,13 +81,13 @@ impl Pin {
 pub enum ReleaseAction {
     /// What a release would hold: its notes, as they would be published.
     Notes {
-        /// seedling or grove.
+        /// seedling, grove or forest.
         product: String,
     },
     /// Start the Release workflow of one server or more (it builds,
     /// publishes, tags last), after one confirmation for all of them.
     Cut {
-        /// seedling, grove, or both.
+        /// seedling, grove, forest, or several of them.
         #[arg(required = true, num_args = 1..)]
         products: Vec<String>,
         /// The size of the step; `auto` reads it from the commits.
@@ -102,7 +106,7 @@ pub enum ReleaseAction {
     /// For the Release workflow: the version and the notes of the release at
     /// a commit, written to `$GITHUB_OUTPUT` when it is set.
     Plan {
-        /// seedling or grove (or the repository's name).
+        /// seedling, grove or forest (or the repository's name).
         product: String,
         #[arg(long, value_enum, default_value_t = Bump::Auto)]
         bump: Bump,
@@ -183,7 +187,9 @@ fn product_named(name: &str) -> Result<&'static Product> {
     PRODUCTS
         .iter()
         .find(|product| product.name == name || product.repo == name)
-        .with_context(|| format!("`{name}` is not a server that is released: seedling or grove"))
+        .with_context(|| {
+            format!("`{name}` is not a server that is released: seedling, grove or forest")
+        })
 }
 
 // -- What a release would hold ------------------------------------------------
