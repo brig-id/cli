@@ -18,10 +18,16 @@ issues, pull requests. No exceptions.
 - `repos` — cross-repo convenience commands (`status`, `fetch`, `pull`, `branch`,
   `install`, `build`, `test`, `lint`) run against the sibling repos cloned by
   [`brig-id/roots`](https://github.com/brig-id/roots)'s devcontainer
-- `release` — the release train, read from GitHub through `gh`: the pull requests to
-  merge in order (crypto, core, app, servers; Renovate's `brig-id` updates and
-  release-please's release pull requests), with their checks, and the pins older than
-  the latest release, which Renovate has yet to propose. It never merges.
+- `release` — the releases of the servers (seedling, grove), read from GitHub through
+  `gh`. Without a subcommand: for each server, what was merged since its last release
+  in its own repository and in crypto, the core and the interface (which it follows at
+  a commit of their `main`), whether a person running it would notice, and what is
+  merged there that the server does not follow yet. `release notes <server>` prints
+  the notes a release would have. `release cut <server>` starts the server's Release
+  workflow, which builds, publishes and tags last; nothing releases without it.
+  `release plan` is what that workflow itself runs (brig-id/.github,
+  `release-plan.yml`, installs this command from `main`): the version and the notes
+  are computed in one place.
 
 This repo does not host product runtime code, orchestration config, or the
 devcontainer itself — those live in `roots`. `cli` is cloned as a sibling alongside
@@ -41,7 +47,7 @@ brigid check
 brigid setup
 brigid dev
 brigid repos <status|fetch|pull|branch|install|build|test|lint>
-brigid release [--watch]
+brigid release [notes <server> | cut <server> [--bump auto|patch|minor|major] [--force] [--dry-run]]
 ```
 
 ## Roadmap & planning
