@@ -22,9 +22,10 @@ issues, pull requests. No exceptions.
   `gh`. Without a subcommand: for each server, what was merged since its last release
   in its own repository and in crypto, the core and the interface (which it follows at
   a commit of their `main`), whether a person running it would notice, and what is
-  merged there that the server does not follow yet. `release notes <server>` prints
-  the notes a release would have. `release cut <server>` starts the server's Release
-  workflow, which builds, publishes and tags last; nothing releases without it.
+  merged there that the server does not follow yet, and whether `main` is green; then
+  it offers to release every server that is ready, in one confirmation. `release notes <server>` prints
+  the notes a release would have. `release cut <server>...` starts the Release
+  workflow of each, after one confirmation, which builds, publishes and tags last; nothing releases without it.
   `release plan` is what that workflow itself runs (brig-id/.github,
   `release-plan.yml`, installs this command from `main`): the version and the notes
   are computed in one place.
@@ -47,7 +48,7 @@ brigid check
 brigid setup
 brigid dev
 brigid repos <status|fetch|pull|branch|install|build|test|lint>
-brigid release [notes <server> | cut <server> [--bump auto|patch|minor|major] [--force] [--dry-run]]
+brigid release [notes <server> | cut <server>... [--bump auto|patch|minor|major] [--force] [--dry-run]]
 ```
 
 ## Roadmap & planning
